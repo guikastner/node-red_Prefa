@@ -1,0 +1,31 @@
+# Copy to terraform.tfvars and fill with real values (do not commit secrets).
+base_domain                  = "your-domain.com"
+timezone                     = "America/Sao_Paulo"
+name_prefix                  = "lab-"           # optional; applied to all container names/hostnames
+node_red_name                = "node1"
+mongo_root_username          = "admin"
+mongo_root_password          = "change-me"
+node_red_admin_username      = "admin"
+# Hash corresponds to password "0102030405!" (bcrypt cost 08). Replace only if changing the password.
+node_red_admin_password_hash = "$2y$08$zxIS.hLoUbsk2FmZ13awj.r3wpPekvLz/KWDQKK/p4mV0oexYVXuq"
+node_red_credential_secret   = "set-your-own-secret"
+node_red_extra_modules       = [
+  "https://btcc.s3.dualstack.eu-west-1.amazonaws.com/widget-lab/npm/node-red-contrib-3dxinterfaces/dist/widget-lab-node-red-contrib-3dxinterfaces-6.5.1.tgz",
+  "node-red-contrib-mongodb4",
+]
+delete_data_on_destroy       = false
+minio_endpoint               = "https://minio2.kastner.com.br"
+minio_access_key             = "minioadmin"
+minio_secret_key             = "change-me"
+minio_bucket_name            = "my-bucket"
+minio_bucket_folders         = ["input", "output"]
+cloudflare_api_token         = "CLOUDFLARE_API_TOKEN"
+cloudflare_zone_id           = "CLOUDFLARE_ZONE_ID"
+cloudflare_zone_name         = "your-domain.com"
+cloudflare_origin_address    = ""
+cloudflare_proxied           = true
+
+cloudflare_tunnel = {
+  name        = "lab-tunnel"
+  account_id  = "ACCOUNT_ID_FROM_CLOUDFLARE"
+}

@@ -1,0 +1,93 @@
+# Node-RED/Mongo Infrastructure (OpenTofu)
+
+Infrastructure as code to provision the stack using OpenTofu and the Docker provider. The stack is fully contained inside an internal Docker network (no host port publishing) and exposes services through a Cloudflare Tunnel.
+
+## Components
+- 1× Node-RED container (`nodered/node-red:4.1.4-22`): name comes from `name_prefix` + `node_red_name` (default `lab-node1`) on port `1880` inside the mesh.
+- 1× MongoDB container (`mongo:7.0.14`): default `lab-mongo1`.
+- 1× Cloudflare Tunnel agent (`cloudflare/cloudflared:latest`): default `lab-cloudflared1`, routing external CNAME to the Node-RED instance. Tunnel and DNS records are created via the Cloudflare provider, not manually.
+- 1× MinIO bucket bootstrap (script-driven via OpenTofu `null_resource`): creates a bucket and first-level folders on a remote MinIO endpoint.
+- Internal bridge network `${name_prefix}net` marked as `internal` so nothing is exposed to the host.
+
+### Node-RED security
+- Admin auth is enabled by default using user `admin` and password `0102030405!` (bcrypt hash stored in `node_red_admin_password_hash`).
+- Credentials encryption uses `node_red_credential_secret`; override it in your `terraform.tfvars`.
+- `settings.js` is rendered to `build/node-red/settings.js` from `templates/node-red-settings.js.tmpl` and mounted read-only into the Node-RED container.
+- Before the Node-RED container starts, the packages defined in `node_red_extra_modules` are installed into its data directory via the Node-RED image (`npm install ...`). Defaults include `node-red-contrib-3dxinterfaces` tarball and `node-red-contrib-mongodb4`.
+
+### Cloudflare automation
+- OpenTofu creates the tunnel using only the tunnel name and account ID; the tunnel secret is generated automatically (no manual secret input).
+- Ingress rules and CNAME records are generated for the Node-RED hostname.
+
+## Prerequisites
+- Docker Engine running locally and accessible via `unix:///var/run/docker.sock` (default).
+- OpenTofu ≥ 1.6.2 installed (`tofu` CLI).
+- MinIO Client (`mc`) installed on the host when MinIO bucket provisioning is enabled.
+- Cloudflare account with an active tunnel and permissions to create DNS records for your domain.
+
+## Quick start
+1. Copy `terraform.tfvars.example` to `terraform.tfvars` and fill in real values (domain, MongoDB credentials, Cloudflare tunnel data). Keep `terraform.tfvars` out of version control.
+2. (Optional) Adjust images or timezone in `variables.tf` if you need different versions.
+3. Initialize and review the plan:
+   ```bash
+   tofu init
+   tofu plan
+   tofu apply
+   ```
+
+## terraform.tfvars guide
+Supply real values in `terraform.tfvars` (keep it out of version control). Below are the inputs:
+
+| Variable | Description | Example |
+| --- | --- | --- |
+| `base_domain` | Base domain used to build hostnames (CNAMEs) for Node-RED. | `example.com` |
+| `timezone` | Timezone injected into Node-RED containers. | `America/Sao_Paulo` |
+| `name_prefix` | Optional prefix applied to all names (containers, hostnames, data dirs). | `lab-` |
+| `mongo_root_username` | MongoDB root user. | `admin` |
+| `mongo_root_password` | MongoDB root password (sensitive). | `change-me` |
+| `node_red_admin_username` | Node-RED editor admin user. | `admin` |
+| `node_red_admin_password_hash` | BCrypt hash for the Node-RED admin password. Default hash = `0102030405!`. | `$2y$08$...` |
+| `node_red_credential_secret` | Secret to encrypt Node-RED credentials. | `set-your-own-secret` |
+| `node_red_name` | Base name (prefix added) for the Node-RED container/hostname. | `"node1"` |
+| `minio_endpoint` | MinIO/S3 endpoint URL for bucket provisioning. | `https://minio2.kastner.com.br` |
+| `minio_access_key` | MinIO access key (user). | `minioadmin` |
+| `minio_secret_key` | MinIO secret key (password). | `change-me` |
+| `minio_bucket_name` | Bucket name to create. Empty value disables MinIO provisioning. | `"my-bucket"` |
+| `minio_bucket_folders` | List of first-level folders to create as prefixes. | `["input","output"]` |
+| `cloudflare_api_token` | API token with tunnel + DNS permissions. | `CLOUDFLARE_API_TOKEN` |
+| `cloudflare_zone_id` | Cloudflare Zone ID where CNAMEs are created. | `CLOUDFLARE_ZONE_ID` |
+| `cloudflare_zone_name` | Zone name (for reference/logging). | `your-domain.com` |
+| `cloudflare_origin_address` | Optional origin address (not used by current CNAME setup). | `` |
+| `cloudflare_proxied` | Whether DNS records are proxied by Cloudflare. | `true` |
+| `cloudflare_tunnel.name` | Name of the tunnel to create. | `lab-tunnel` |
+| `cloudflare_tunnel.account_id` | Cloudflare account ID. | `ACCOUNT_ID_FROM_CLOUDFLARE` |
+| `delete_data_on_destroy` | If `true`, deletes the data bind directories on destroy; otherwise keeps them. | `false` |
+  - Implemented via separate cleanup resources (`node_red_data_dirs_cleanup`, `mongo_data_dir_cleanup`) that run only when this flag is true.
+
+4. Cloudflare resources (tunnel, config, and CNAME records) are created automatically. The agent reads its rendered config at `build/cloudflare/config.yml` and credentials at `build/cloudflare/<tunnel-id>.json`, both generated during `tofu apply` and mounted into the cloudflared container.
+
+## Cloudflare settings & CNAMEs
+- The tunnel is created by OpenTofu (`cloudflare_tunnel`), and the DNS CNAME for the Node-RED hostname is created automatically via `cloudflare_record`.
+- The agent-side config is rendered from `templates/cloudflared-config.yml.tmpl`; it builds the ingress entry for the Node-RED container using `base_domain` (e.g., `lab-node1.example.com`).
+- Example settings input is in `config/cloudflare/settings.example.yml`; use it as a guide for required fields (tunnel id/name, account tag, secret, base domain, timezone).
+
+## Project structure
+- `main.tf` / `locals.tf` / `variables.tf`: Providers, shared locals, and input variables.
+- `infrastructure.tf`: Network and base images.
+- `containers.tf`: Node-RED and MongoDB containers.
+- `cloudflare.tf`: Cloudflare tunnel config generation and container wiring.
+- `minio.tf`: Scripted MinIO bucket/prefix provisioning workflow.
+- `scripts/minio_setup.sh`: Idempotent MinIO setup script executed by OpenTofu.
+- `templates/cloudflared-config.yml.tmpl`: Template for ingress mapping to the Node-RED instance.
+- `terraform.tfvars.example`: Sample values (do not commit your real `terraform.tfvars`).
+- `logs/`: Interaction logs required by the project guidelines.
+
+## Operational notes
+- No ports are published to the host; all traffic enters via the Cloudflare tunnel and the private `${name_prefix}net` network.
+- Node-RED data and MongoDB data are stored in bind mounts under `/DATA/AppData/<name>` to persist across container recreations.
+- The Cloudflare container runs with `--no-autoupdate`; update the image tag in `variables.tf` to control upgrades.
+- MinIO bucket setup is executed with local `mc` (MinIO Client) on the host; each folder entry creates `<folder>/.keep` in the target bucket.
+
+## Next steps
+- Provide real tunnel credentials and domain values, then run `opentofu apply`.
+- Add Node-RED flows or additional services by extending the locals in `locals.tf` and the template in `templates/cloudflared-config.yml.tmpl`.

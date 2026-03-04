@@ -1,0 +1,7 @@
+# Example values to generate Cloudflare tunnel settings. Copy to settings.yml and replace placeholders.
+tunnel_id: "00000000-0000-0000-0000-000000000000"
+tunnel_name: "lab-tunnel"
+account_tag: "ACCOUNT_TAG_FROM_CLOUDFLARE"
+tunnel_secret: "BASE64_TUNNEL_SECRET"
+base_domain: "example.com"
+timezone: "America/Sao_Paulo"
