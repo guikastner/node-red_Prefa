@@ -19,6 +19,19 @@ Infrastructure as code to provision the stack using OpenTofu and the Docker prov
 - OpenTofu creates the tunnel using only the tunnel name and account ID; the tunnel secret is generated automatically (no manual secret input).
 - Ingress rules and CNAME records are generated for the Node-RED hostname.
 
+## MongoDB
+- MongoDB runs as a single container (`mongo:7.0.14`) on the internal network only.
+- Root credentials are configured with `mongo_root_username` and `mongo_root_password`.
+- Persistent data is stored in a bind mount under `/DATA/AppData/<name_prefix>mongo1`.
+- No host ports are published; Node-RED reaches MongoDB through the internal Docker network alias.
+
+## Backup
+- MinIO is treated as an external, already existing service (no MinIO container is created in this stack).
+- Bucket and first-level folder provisioning are driven by OpenTofu via `minio.tf` and `scripts/minio_setup.sh`.
+- Configure backup destination using `minio_endpoint`, `minio_bucket_name`, and `minio_bucket_folders`.
+- Recommended folder names for backups include entries such as `backup` and `mongo-backup`.
+- This repository provisions the backup structure in MinIO; backup job execution (for example `mongodump`) should be handled by your scheduler/pipeline.
+
 ## Prerequisites
 - Docker Engine running locally and accessible via `unix:///var/run/docker.sock` (default).
 - OpenTofu ≥ 1.6.2 installed (`tofu` CLI).
