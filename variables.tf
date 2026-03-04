@@ -130,6 +130,36 @@ variable "minio_bucket_folders" {
   default     = []
 }
 
+variable "backup_enabled" {
+  description = "If true, configures scheduled backup for MongoDB and Node-RED flows."
+  type        = bool
+  default     = true
+}
+
+variable "backup_cron_schedule" {
+  description = "Cron schedule used to run backup on the host."
+  type        = string
+  default     = "0 2 * * *"
+}
+
+variable "backup_retention_days" {
+  description = "Number of days to keep local backup artifacts before cleanup."
+  type        = number
+  default     = 14
+}
+
+variable "backup_mongo_prefix" {
+  description = "Prefix/folder used in MinIO bucket for MongoDB backups."
+  type        = string
+  default     = "mongo-backup"
+}
+
+variable "backup_node_red_prefix" {
+  description = "Prefix/folder used in MinIO bucket for Node-RED backup files."
+  type        = string
+  default     = "node-red-backup"
+}
+
 variable "cloudflare_api_token" {
   description = "API token with permissions to manage tunnels and DNS records."
   type        = string

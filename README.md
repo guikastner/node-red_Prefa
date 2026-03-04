@@ -30,7 +30,11 @@ Infrastructure as code to provision the stack using OpenTofu and the Docker prov
 - Bucket and first-level folder provisioning are driven by OpenTofu via `minio.tf` and `scripts/minio_setup.sh`.
 - Configure backup destination using `minio_endpoint`, `minio_bucket_name`, and `minio_bucket_folders`.
 - Recommended folder names for backups include entries such as `backup` and `mongo-backup`.
-- This repository provisions the backup structure in MinIO; backup job execution (for example `mongodump`) should be handled by your scheduler/pipeline.
+- Scheduled backup execution is configured by OpenTofu through host cron (`backup.tf`).
+- Each run executes `scripts/backup_run.sh`, which:
+  - creates a MongoDB gzip archive using `mongodump` inside the running Mongo container,
+  - packages Node-RED flow files from the Node-RED data directory,
+  - uploads both artifacts under `backup/` in MinIO (`backup/<backup_mongo_prefix>` and `backup/<backup_node_red_prefix>`) using `mc`.
 
 ## Prerequisites
 - Docker Engine running locally and accessible via `unix:///var/run/docker.sock` (default).
@@ -66,7 +70,12 @@ Supply real values in `terraform.tfvars` (keep it out of version control). Below
 | `minio_access_key` | MinIO access key (user). | `minioadmin` |
 | `minio_secret_key` | MinIO secret key (password). | `change-me` |
 | `minio_bucket_name` | Bucket name to create. Empty value disables MinIO provisioning. | `"my-bucket"` |
-| `minio_bucket_folders` | List of first-level folders to create as prefixes. | `["input","output"]` |
+| `minio_bucket_folders` | List of first-level folders to create as prefixes. | `["backup","backup/mongo-backup","backup/node-red-backup"]` |
+| `backup_enabled` | Enables/disables backup cron provisioning on the host. | `true` |
+| `backup_cron_schedule` | Cron expression for backup execution. | `"0 2 * * *"` |
+| `backup_retention_days` | Local retention (days) for generated backup files. | `14` |
+| `backup_mongo_prefix` | MinIO folder/prefix used for MongoDB archives. | `"mongo-backup"` |
+| `backup_node_red_prefix` | MinIO folder/prefix used for Node-RED flow backups. | `"node-red-backup"` |
 | `cloudflare_api_token` | API token with tunnel + DNS permissions. | `CLOUDFLARE_API_TOKEN` |
 | `cloudflare_zone_id` | Cloudflare Zone ID where CNAMEs are created. | `CLOUDFLARE_ZONE_ID` |
 | `cloudflare_zone_name` | Zone name (for reference/logging). | `your-domain.com` |
@@ -90,6 +99,8 @@ Supply real values in `terraform.tfvars` (keep it out of version control). Below
 - `containers.tf`: Node-RED and MongoDB containers.
 - `cloudflare.tf`: Cloudflare tunnel config generation and container wiring.
 - `minio.tf`: Scripted MinIO bucket/prefix provisioning workflow.
+- `backup.tf`: Cron-based backup provisioning and secure backup runner generation.
+- `scripts/backup_run.sh`: Backup executor (MongoDB + Node-RED flows to MinIO).
 - `scripts/minio_setup.sh`: Idempotent MinIO setup script executed by OpenTofu.
 - `templates/cloudflared-config.yml.tmpl`: Template for ingress mapping to the Node-RED instance.
 - `terraform.tfvars.example`: Sample values (do not commit your real `terraform.tfvars`).
@@ -100,6 +111,7 @@ Supply real values in `terraform.tfvars` (keep it out of version control). Below
 - Node-RED data and MongoDB data are stored in bind mounts under `/DATA/AppData/<name>` to persist across container recreations.
 - The Cloudflare container runs with `--no-autoupdate`; update the image tag in `variables.tf` to control upgrades.
 - MinIO bucket setup is executed with local `mc` (MinIO Client) on the host; each folder entry creates `<folder>/.keep` in the target bucket.
+- Backup execution also requires local `mc` and host `crontab`; logs are written to `/DATA/AppData/<name_prefix>backups/backup.log`.
 
 ## Next steps
 - Provide real tunnel credentials and domain values, then run `opentofu apply`.

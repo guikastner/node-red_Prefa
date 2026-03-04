@@ -16,4 +16,11 @@ locals {
   cloudflare_generated_dir    = abspath("${path.module}/build/cloudflare")
   cloudflare_config_path      = abspath("${local.cloudflare_generated_dir}/config.yml")
   cloudflare_credentials_path = abspath("${local.cloudflare_generated_dir}/cloudflared-credentials.json")
+
+  backup_local_dir   = abspath("${local.data_root}/${var.name_prefix}backups")
+  backup_log_file    = abspath("${local.backup_local_dir}/backup.log")
+  backup_script_path = abspath("${path.module}/scripts/backup_run.sh")
+
+  backup_generated_dir = abspath("${path.module}/build/backup")
+  backup_runner_path   = abspath("${local.backup_generated_dir}/backup_runner.sh")
 }
