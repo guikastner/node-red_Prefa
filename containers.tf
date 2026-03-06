@@ -26,6 +26,11 @@ resource "docker_container" "node_red" {
     aliases = [local.node_red_instance.name]
   }
 
+  # Keep internal service communication on main network and allow outbound internet via default bridge.
+  networks_advanced {
+    name = "bridge"
+  }
+
   depends_on = [
     docker_network.main,
     local_file.node_red_settings,

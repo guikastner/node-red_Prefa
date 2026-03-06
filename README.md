@@ -1,13 +1,14 @@
 # Node-RED/Mongo Infrastructure (OpenTofu)
 
-Infrastructure as code to provision the stack using OpenTofu and the Docker provider. The stack is fully contained inside an internal Docker network (no host port publishing) and exposes services through a Cloudflare Tunnel.
+Infrastructure as code to provision the stack using OpenTofu and the Docker provider. The stack keeps private east-west traffic on an internal Docker network (no host port publishing), while selected containers also use the default `bridge` network for outbound internet access, and exposes services through a Cloudflare Tunnel.
 
 ## Components
 - 1× Node-RED container (`nodered/node-red:4.1.4-22`): name comes from `name_prefix` + `node_red_name` (default `lab-node1`) on port `1880` inside the mesh.
 - 1× MongoDB container (`mongo:7.0.14`): default `lab-mongo1`.
 - 1× Cloudflare Tunnel agent (`cloudflare/cloudflared:latest`): default `lab-cloudflared1`, routing external CNAME to the Node-RED instance. Tunnel and DNS records are created via the Cloudflare provider, not manually.
 - 1× MinIO bucket bootstrap (script-driven via OpenTofu `null_resource`): creates a bucket and first-level folders on a remote MinIO endpoint.
-- Internal bridge network `${name_prefix}net` marked as `internal` so nothing is exposed to the host.
+- Internal bridge network `${name_prefix}net` marked as `internal` for private inter-container traffic.
+- Node-RED is attached to `${name_prefix}net` and also to Docker `bridge` for outbound internet (palette/module installs) without publishing host ports.
 
 ### Node-RED security
 - Admin auth is enabled by default using user `admin` and password `0102030405!` (bcrypt hash stored in `node_red_admin_password_hash`).
@@ -107,7 +108,10 @@ Supply real values in `terraform.tfvars` (keep it out of version control). Below
 - `logs/`: Interaction logs required by the project guidelines.
 
 ## Operational notes
-- No ports are published to the host; all traffic enters via the Cloudflare tunnel and the private `${name_prefix}net` network.
+- No ports are published to the host; inbound traffic enters via the Cloudflare tunnel.
+- Network model:
+  - Node-RED: `${name_prefix}net` (internal) + `bridge` (outbound internet).
+  - MongoDB: `${name_prefix}net` only.
 - Node-RED data and MongoDB data are stored in bind mounts under `/DATA/AppData/<name>` to persist across container recreations.
 - The Cloudflare container runs with `--no-autoupdate`; update the image tag in `variables.tf` to control upgrades.
 - MinIO bucket setup is executed with local `mc` (MinIO Client) on the host; each folder entry creates `<folder>/.keep` in the target bucket.
