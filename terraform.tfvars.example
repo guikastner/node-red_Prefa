@@ -12,6 +12,7 @@ node_red_credential_secret   = "set-your-own-secret"
 node_red_extra_modules       = [
   "https://btcc.s3.dualstack.eu-west-1.amazonaws.com/widget-lab/npm/node-red-contrib-3dxinterfaces/dist/widget-lab-node-red-contrib-3dxinterfaces-6.5.1.tgz",
   "node-red-contrib-mongodb4",
+  "node-red-contrib-xlsx-to-json",
 ]
 delete_data_on_destroy       = false
 minio_endpoint               = "https://minio2.kastner.com.br"

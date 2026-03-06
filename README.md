@@ -14,7 +14,7 @@ Infrastructure as code to provision the stack using OpenTofu and the Docker prov
 - Admin auth is enabled by default using user `admin` and password `0102030405!` (bcrypt hash stored in `node_red_admin_password_hash`).
 - Credentials encryption uses `node_red_credential_secret`; override it in your `terraform.tfvars`.
 - `settings.js` is rendered to `build/node-red/settings.js` from `templates/node-red-settings.js.tmpl` and mounted read-only into the Node-RED container.
-- Before the Node-RED container starts, the packages defined in `node_red_extra_modules` are installed into its data directory via the Node-RED image (`npm install ...`). Defaults include `node-red-contrib-3dxinterfaces` tarball and `node-red-contrib-mongodb4`.
+- Before the Node-RED container starts, the packages defined in `node_red_extra_modules` are installed into its data directory via the Node-RED image (`npm install ...`). Defaults include `node-red-contrib-3dxinterfaces` tarball, `node-red-contrib-mongodb4`, and `node-red-contrib-xlsx-to-json`.
 
 ### Cloudflare automation
 - OpenTofu creates the tunnel using only the tunnel name and account ID; the tunnel secret is generated automatically (no manual secret input).

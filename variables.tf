@@ -89,6 +89,7 @@ variable "node_red_extra_modules" {
   default = [
     "https://btcc.s3.dualstack.eu-west-1.amazonaws.com/widget-lab/npm/node-red-contrib-3dxinterfaces/dist/widget-lab-node-red-contrib-3dxinterfaces-6.5.1.tgz",
     "node-red-contrib-mongodb4",
+    "node-red-contrib-xlsx-to-json",
   ]
 }
 
